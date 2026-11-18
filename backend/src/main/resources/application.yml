@@ -1,0 +1,55 @@
+server:
+  address: 127.0.0.1
+  port: ${SIGNALFORGE_BACKEND_PORT:58870}
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: strict
+spring:
+  application:
+    name: signalforge-backend
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:${POSTGRES_PORT:45432}/${POSTGRES_DB:signalforge_java}
+    username: ${POSTGRES_USER:signalforge}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 8
+      connection-timeout: 5000
+  data:
+    redis:
+      host: 127.0.0.1
+      port: ${REDIS_PORT:46379}
+      connect-timeout: 300ms
+      timeout: 500ms
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  task:
+    scheduling:
+      pool:
+        size: 3
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+signalforge:
+  intraday-cache-ttl: ${SIGNALFORGE_INTRADAY_CACHE_TTL:20s}
+  bootstrap-enabled: ${SIGNALFORGE_BOOTSTRAP_ENABLED:false}
+  bootstrap-username: ${SIGNALFORGE_DEV_USERNAME:developer}
+  bootstrap-password: ${SIGNALFORGE_DEV_PASSWORD:}
+  allow-fixtures: ${SIGNALFORGE_ALLOW_FIXTURES:false}
+  agent-url: ${SIGNALFORGE_AGENT_URL:http://127.0.0.1:58872}
+  agent-token: ${SIGNALFORGE_AGENT_TOKEN:}
+  worker-enabled: ${SIGNALFORGE_WORKER_ENABLED:true}
+  lease-seconds: 30
+  deadline-seconds: 120
+  max-attempts: 3
+  knowledge-worker-enabled: ${SIGNALFORGE_KNOWLEDGE_WORKER_ENABLED:true}
+  neo4j-uri: bolt://127.0.0.1:${NEO4J_BOLT_PORT:47687}
+  neo4j-password: ${NEO4J_PASSWORD:}
+  deepseek-api-key: ${SIGNALFORGE_DEEPSEEK_API_KEY:}
+  deepseek-model: ${SIGNALFORGE_DEEPSEEK_MODEL:deepseek-flash}
+
+  evidence-worker-enabled: ${SIGNALFORGE_EVIDENCE_WORKER_ENABLED:${SIGNALFORGE_KNOWLEDGE_WORKER_ENABLED:true}}
+  model-daily-token-limit: ${SIGNALFORGE_MODEL_DAILY_TOKEN_LIMIT:100000}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SignalForge · 研究工作台</title><link rel="stylesheet" href="/workspace.css">
+  <script type="module" src="/workspace.js"></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/">SignalForge <span>研究工作台</span></a><div id="identity" hidden><span id="username"></span><button id="logout" class="quiet">退出登录</button></div></header>
+  <main>
+    <section id="login-panel" class="login card">
+      <p class="eyebrow">SIGNALFORGE RESEARCH</p><h1>开始你的量化研究</h1><p class="muted">输入研究标的，自动获取行情并保留计算依据。</p>
+      <form id="login-form"><label>用户名<input id="login-user" name="username" autocomplete="username" required></label><label>密码<input id="login-password" name="password" type="password" autocomplete="current-password" required></label><button id="login-submit" type="submit">登录工作台</button></form>
+      <p class="muted small">使用本地开发账号登录。账号由项目初始化脚本创建。</p>
+    </section>
+    <p id="message" role="status" aria-live="polite" hidden></p>
+    <section id="workspace" hidden>
+      <div class="heading"><div><p class="eyebrow">RESEARCH WORKSPACE</p><h1>ETF 风险比较</h1><p class="muted">比较历史收益、波动与回撤，查看每项结果的数据依据。</p></div><label class="project-picker">研究项目<select id="project"></select></label></div>
+      <div class="workspace-grid">
+        <aside>
+          <section class="card"><div class="section-title"><h2>新建研究</h2><span class="tag">日线 · 不复权</span></div>
+            <form id="research-form">
+              <div class="form-row"><label>ETF 代码 A<input id="security-a" value="510300" inputmode="numeric" required maxlength="128"></label><label>ETF 代码 B<input id="security-b" value="510500" inputmode="numeric" required maxlength="128"></label></div>
+              <div class="form-row"><label>开始日期<input id="start" type="date" required></label><label>结束日期<input id="end" type="date" required></label></div>
+              <p class="muted small">支持沪深市场 ETF，区间最长 730 天。行情由系统获取，无需上传。</p>
+              <button id="create" type="submit">获取数据并开始研究</button><button id="fixture" type="button" class="secondary" hidden>填入合成演示样例</button>
+            </form><p id="role-note" class="muted small" hidden>当前项目为只读权限，可以查看已有研究。</p>
+          </section>
+          <section class="card history"><div class="section-title"><h2>最近研究</h2><button id="refresh" class="quiet">刷新</button></div><div id="tasks" class="task-list"></div></section>
+        </aside>
+        <div class="results">
+          <section id="empty" class="card empty"><p class="eyebrow">YOUR NEXT RESEARCH</p><h2>从两只 ETF 开始</h2><p class="muted">填写代码与日期，或选择一条已有研究。任务和结果会保存在本地服务中。</p></section>
+          <section id="task-panel" class="card" hidden><div class="section-title"><div><p class="eyebrow">RESEARCH RUN</p><h2 id="task-title"></h2></div><span id="task-state" class="tag"></span></div><p id="task-detail" class="muted small"></p><p id="task-error" role="alert" hidden></p><div class="actions"><button id="cancel" class="secondary" hidden>取消任务</button><button id="download" class="secondary" hidden>下载研究结果</button></div><ol id="events" class="events"></ol></section>
+          <section id="result-panel" hidden>
+            <div class="section-title result-heading"><h2>研究结果</h2><span id="data-kind" class="tag"></span></div>
+            <section class="card"><div class="table-scroll"><table><caption class="sr-only">ETF 风险指标比较，单位为百分比</caption><thead><tr><th>标的</th><th>区间收益</th><th>年化波动</th><th>最大回撤</th></tr></thead><tbody id="metrics"></tbody></table></div><p class="muted small">日简单收益率；年化因子 252；样本标准差；回撤以正损失百分比显示。</p></section>
+            <div class="chart-grid"><section class="card"><h2>区间收益走势</h2><div id="return-legend" class="legend"></div><canvas id="returns-chart" role="img" aria-label="两只 ETF 的累计收益率曲线，单位百分比"></canvas><p id="chart-range" class="muted small"></p></section><section class="card"><h2>历史回撤</h2><div id="drawdown-legend" class="legend"></div><canvas id="drawdown-chart" role="img" aria-label="两只 ETF 的回撤曲线，单位百分比"></canvas></section></div>
+            <section class="card"><h2>数据与来源</h2><div id="sources"></div><p class="notice">交易日历完整性尚未验证，指标仅解释实际返回的样本。本次获取的历史行情也不等于当时公开版本的数据重放。</p></section>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

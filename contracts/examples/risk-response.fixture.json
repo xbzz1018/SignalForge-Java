@@ -1,0 +1,149 @@
+{
+  "effectiveRequest": {
+    "schemaVersion": "1.0",
+    "researchType": "ETF_RISK_COMPARISON",
+    "securities": [
+      {
+        "securityId": "fixture:ETF_A",
+        "market": "FIXTURE"
+      },
+      {
+        "securityId": "fixture:ETF_B",
+        "market": "FIXTURE"
+      }
+    ],
+    "knowledgeAsOf": "2026-06-30T23:59:59+08:00",
+    "priceRange": {
+      "start": "2025-01-02",
+      "end": "2025-01-09",
+      "frequency": "DAILY"
+    },
+    "priceAdjustment": "NONE",
+    "metrics": [
+      "TOTAL_RETURN",
+      "ANNUALIZED_VOLATILITY",
+      "MAX_DRAWDOWN"
+    ],
+    "executionMode": "DETERMINISTIC"
+  },
+  "demoData": true,
+  "calculationVersion": "risk-v1",
+  "annualizationFactor": 252,
+  "volatilityDdof": 1,
+  "metricUnit": "PERCENT",
+  "returnDefinition": "DAILY_SIMPLE",
+  "timezone": "Asia/Shanghai",
+  "series": [
+    {
+      "securityId": "fixture:ETF_A",
+      "market": "FIXTURE",
+      "adjustment": "NONE",
+      "bars": [
+        {
+          "date": "2025-01-02",
+          "close": "100"
+        },
+        {
+          "date": "2025-01-03",
+          "close": "110"
+        },
+        {
+          "date": "2025-01-06",
+          "close": "99"
+        },
+        {
+          "date": "2025-01-07",
+          "close": "108.9"
+        },
+        {
+          "date": "2025-01-08",
+          "close": "103.455"
+        },
+        {
+          "date": "2025-01-09",
+          "close": "113.8005"
+        }
+      ],
+      "metrics": {
+        "TOTAL_RETURN": 13.800499999999992,
+        "ANNUALIZED_VOLATILITY": 154.72556349873162,
+        "MAX_DRAWDOWN": 10.0
+      },
+      "dataVersion": "fdcbe101dfb456045aa3ffaa2be2726c57eb791ca3d29dc409bb4940828a7b6f",
+      "coverage": {
+        "observations": 6,
+        "firstDate": "2025-01-02",
+        "lastDate": "2025-01-09",
+        "calendarVerified": false,
+        "complete": false,
+        "missingHandling": "REJECT_MISSING_CLOSE_NO_IMPUTATION"
+      },
+      "sourceRefs": [
+        {
+          "uri": "fixture://signalforge/risk-v1/ETF_A",
+          "provider": "signalforge-synthetic-v1",
+          "fetchedAt": "2026-11-05T13:38:17.573888+00:00",
+          "demoData": true
+        }
+      ]
+    },
+    {
+      "securityId": "fixture:ETF_B",
+      "market": "FIXTURE",
+      "adjustment": "NONE",
+      "bars": [
+        {
+          "date": "2025-01-02",
+          "close": "100"
+        },
+        {
+          "date": "2025-01-03",
+          "close": "98"
+        },
+        {
+          "date": "2025-01-06",
+          "close": "102"
+        },
+        {
+          "date": "2025-01-07",
+          "close": "101"
+        },
+        {
+          "date": "2025-01-08",
+          "close": "104"
+        },
+        {
+          "date": "2025-01-09",
+          "close": "106"
+        }
+      ],
+      "metrics": {
+        "TOTAL_RETURN": 6.000000000000005,
+        "ANNUALIZED_VOLATILITY": 41.20857035848237,
+        "MAX_DRAWDOWN": 2.0
+      },
+      "dataVersion": "3ddccfb817506028e7ecc8e1d6f5cc3c8ba526076f0a00c72efcc9e49d4fa464",
+      "coverage": {
+        "observations": 6,
+        "firstDate": "2025-01-02",
+        "lastDate": "2025-01-09",
+        "calendarVerified": false,
+        "complete": false,
+        "missingHandling": "REJECT_MISSING_CLOSE_NO_IMPUTATION"
+      },
+      "sourceRefs": [
+        {
+          "uri": "fixture://signalforge/risk-v1/ETF_B",
+          "provider": "signalforge-synthetic-v1",
+          "fetchedAt": "2026-11-05T13:38:17.574127+00:00",
+          "demoData": true
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Synthetic demonstration data",
+    "Trading calendar coverage is unverified; metrics apply only to returned samples",
+    "Knowledge cutoff is a request constraint, not proof of historical price availability"
+  ]
+}

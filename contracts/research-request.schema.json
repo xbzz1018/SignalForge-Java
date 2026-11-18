@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:signalforge:research-request:v1",
+  "title": "SignalForge ETF research request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "researchType", "securities", "knowledgeAsOf", "priceRange", "priceAdjustment", "metrics", "executionMode"],
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "researchType": {"enum": ["ETF_RISK_COMPARISON", "ETF_DISCLOSED_HOLDINGS_COMPARISON"]},
+    "securities": {
+      "type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["securityId", "market"],
+        "properties": {
+          "securityId": {"type": "string", "minLength": 1, "maxLength": 128},
+          "market": {"enum": ["SSE", "SZSE", "HKEX", "NYSE", "NASDAQ", "FIXTURE"]}
+        }
+      }
+    },
+    "knowledgeAsOf": {"type": "string", "format": "date-time"},
+    "priceRange": {
+      "type": "object", "additionalProperties": false,
+      "required": ["start", "end", "frequency"],
+      "properties": {
+        "start": {"type": "string", "format": "date"},
+        "end": {"type": "string", "format": "date"},
+        "frequency": {"const": "DAILY"}
+      }
+    },
+    "priceAdjustment": {"enum": ["NONE", "FORWARD", "BACKWARD"]},
+    "metrics": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["TOTAL_RETURN", "ANNUALIZED_VOLATILITY", "MAX_DRAWDOWN"]}},
+    "executionMode": {"enum": ["DETERMINISTIC", "BOUNDED_AGENT"]}
+  }
+}

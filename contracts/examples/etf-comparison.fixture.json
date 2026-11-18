@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0",
+  "researchType": "ETF_DISCLOSED_HOLDINGS_COMPARISON",
+  "securities": [
+    {"securityId": "fixture:ETF_A", "market": "FIXTURE"},
+    {"securityId": "fixture:ETF_B", "market": "FIXTURE"}
+  ],
+  "knowledgeAsOf": "2026-06-30T23:59:59+08:00",
+  "priceRange": {"start": "2025-01-02", "end": "2025-12-31", "frequency": "DAILY"},
+  "priceAdjustment": "NONE",
+  "metrics": ["TOTAL_RETURN", "ANNUALIZED_VOLATILITY", "MAX_DRAWDOWN"],
+  "executionMode": "DETERMINISTIC"
+}

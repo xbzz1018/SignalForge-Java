@@ -1,0 +1,90 @@
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { parse } from 'dotenv';
+
+import { describe, expect, it } from 'vitest';
+
+const require = createRequire(import.meta.url);
+const {
+  applyRuntimeEnvUpdates,
+  buildInfrastructureEnvironmentDefaults,
+  normalizeGeneratedEnvValue,
+} = require('../../../scripts/dev/setup-env.js') as {
+  applyRuntimeEnvUpdates: (
+    updates: Record<string, string>,
+    options?: { overwrite?: boolean; target?: Record<string, string | undefined> },
+  ) => void;
+  normalizeGeneratedEnvValue: (value: string) => string;
+  buildInfrastructureEnvironmentDefaults: (contents: string) => Record<string, string>;
+};
+
+describe('development setup runtime environment updates', () => {
+  it('uses the Java checkout port defaults for its three Compose services', () => {
+    const defaults = parse(readFileSync('../.env.example'));
+    const compose = readFileSync('../compose.yml', 'utf8');
+    for (const key of ['POSTGRES_PORT', 'REDIS_PORT', 'NEO4J_HTTP_PORT', 'NEO4J_BOLT_PORT']) {
+      expect(defaults[key]).toMatch(/^\d+$/);
+      expect(compose).toContain(`\${${key}:-${defaults[key]}}`);
+    }
+  });
+
+  it('derives missing URLs from customized Docker ports and encodes database credentials', () => {
+    const updates = buildInfrastructureEnvironmentDefaults([
+      'POSTGRES_PORT=5544', 'POSTGRES_USER="research user"', 'POSTGRES_PASSWORD="a#b@c/d"',
+      'POSTGRES_DB="research lab"', 'REDIS_PORT=6633', 'CLICKHOUSE_HTTP_PORT=8811',
+    ].join('\n'));
+    expect(normalizeGeneratedEnvValue(updates.DATABASE_URL)).toBe(
+      'postgresql://research%20user:a%23b%40c%2Fd@127.0.0.1:5544/research%20lab?schema=public',
+    );
+    expect(normalizeGeneratedEnvValue(updates.REDIS_URL)).toBe('redis://127.0.0.1:6633/0');
+    expect(normalizeGeneratedEnvValue(updates.CLICKHOUSE_URL)).toBe('http://127.0.0.1:8811');
+    expect(updates.POSTGRES_PORT).toBeUndefined();
+  });
+
+  it('preserves external endpoints when local Docker port settings are absent', () => {
+    const updates = buildInfrastructureEnvironmentDefaults([
+      'DATABASE_URL=postgresql://external/database', 'REDIS_URL=redis://external:6633/1',
+      'CLICKHOUSE_URL=https://external:8443',
+    ].join('\n'));
+    expect(updates.DATABASE_URL).toBeUndefined();
+    expect(updates.REDIS_URL).toBeUndefined();
+    expect(updates.CLICKHOUSE_URL).toBeUndefined();
+  });
+
+  it('normalizes quoted values before passing them to child processes', () => {
+    expect(normalizeGeneratedEnvValue('"http://localhost:3000"')).toBe(
+      'http://localhost:3000',
+    );
+    expect(normalizeGeneratedEnvValue("'local'")).toBe('local');
+    expect(normalizeGeneratedEnvValue('3000')).toBe('3000');
+  });
+
+  it('applies newly generated trusted origins during the current launch', () => {
+    const target = {
+      SIGNALFORGE_AUTH_TRUSTED_ORIGINS: 'http://localhost:3000',
+    };
+
+    applyRuntimeEnvUpdates(
+      {
+        SIGNALFORGE_AUTH_TRUSTED_ORIGINS:
+          'http://localhost:3000,http://127.0.0.1:3000',
+      },
+      { target },
+    );
+
+    expect(target.SIGNALFORGE_AUTH_TRUSTED_ORIGINS).toBe(
+      'http://localhost:3000,http://127.0.0.1:3000',
+    );
+  });
+
+  it('does not overwrite an explicit runtime value when requested', () => {
+    const target = { DATABASE_URL: 'postgresql://explicit/database' };
+
+    applyRuntimeEnvUpdates(
+      { DATABASE_URL: 'postgresql://generated/database' },
+      { overwrite: false, target },
+    );
+
+    expect(target.DATABASE_URL).toBe('postgresql://explicit/database');
+  });
+});

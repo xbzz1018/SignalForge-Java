@@ -1,0 +1,4 @@
+# Preserve upstream migration checksums and skill content hashes across checkouts.
+frontend/prisma/migrations/** -text
+frontend/.pi/** -text
+*.sh text eol=lf
