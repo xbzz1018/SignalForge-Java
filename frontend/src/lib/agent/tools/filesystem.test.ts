@@ -1,3 +1,4 @@
+import { linkDirectory } from '@/test/workspace-links';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -177,7 +178,7 @@ describe('PI Agent typed filesystem tools', () => {
   });
 
   it('rejects read and write escapes through symbolic links', async () => {
-    await fs.symlink(outside, path.join(workspace, 'app', 'escape'));
+    await linkDirectory(outside, path.join(workspace, 'app', 'escape'));
 
     await expect(invoke(createReadFileTool({ workspaceRoot: workspace }), {
       path: 'app/escape/secret.txt',
@@ -204,7 +205,7 @@ describe('PI Agent typed filesystem tools', () => {
   });
 
   it('detects a writable-looking symlink alias that resolves into .data-agent', async () => {
-    await fs.symlink(path.join(workspace, '.data-agent'), path.join(workspace, 'app', 'platform-alias'));
+    await linkDirectory(path.join(workspace, '.data-agent'), path.join(workspace, 'app', 'platform-alias'));
     await expect(invoke(createWriteFileTool({
       workspaceRoot: workspace,
       allowedWriteGlobs: ['**'],
@@ -320,7 +321,7 @@ describe('PI Agent typed filesystem tools', () => {
     })).resolves.toMatchObject({ ok: false, error: { code: 'WRITE_PATH_DENIED' } });
 
     await fs.mkdir(path.join(workspace, 'components'), { recursive: true });
-    await fs.symlink(path.join(workspace, 'app'), path.join(workspace, 'components', 'alias'));
+    await linkDirectory(path.join(workspace, 'app'), path.join(workspace, 'components', 'alias'));
     await expect(invoke(createWriteFileTool({ workspaceRoot: workspace }), {
       path: 'components/alias/through-link.ts',
       content: 'export const unsafe = true;\n',

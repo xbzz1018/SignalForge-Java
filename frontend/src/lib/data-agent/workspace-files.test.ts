@@ -1,3 +1,4 @@
+import { linkDirectory } from '@/test/workspace-links';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -32,7 +33,7 @@ describe('atomic workspace files', () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'data-agent-files-'));
     const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'data-agent-outside-'));
     roots.push(root, outside);
-    await fs.symlink(outside, path.join(root, 'evidence'));
+    await linkDirectory(outside, path.join(root, 'evidence'));
     await expect(writeWorkspaceJsonAtomic(root, 'evidence/nested/result.json', {}))
       .rejects.toThrow('escapes through a symbolic link');
     await expect(fs.access(path.join(outside, 'nested'))).rejects.toThrow();

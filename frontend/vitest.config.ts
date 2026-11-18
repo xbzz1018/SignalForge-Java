@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
-  // Keep local account, feature flags and database credentials out of unit tests.
+  // Vite must not import local application settings into the test runner.
   envDir: false,
   resolve: {
     alias: {
@@ -11,6 +11,12 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Prisma can independently load .env when the client is constructed.
+    env: {
+      DATABASE_URL: process.env.PI_AGENT_TEST_DATABASE_URL?.trim() || 'postgresql://unit:unit@127.0.0.1:1/signalforge_unit',
+      SIGNALFORGE_AUTH_MODE: 'disabled',
+      SIGNALFORGE_LLM_AGENT_ENABLED: '1',
+    },
     include: ['src/**/*.test.ts'],
     clearMocks: true,
     restoreMocks: true,

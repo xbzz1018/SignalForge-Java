@@ -1,3 +1,4 @@
+import { linkFile } from '@/test/workspace-links';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,7 +25,6 @@ describe('project artifact file policy', () => {
     workspace = await fs.mkdtemp(path.join(os.tmpdir(), 'artifact-policy-'));
     await fs.writeFile(path.join(workspace, '.env'), 'API_TOKEN=secret', 'utf8');
     await fs.writeFile(path.join(workspace, 'preview.png'), Buffer.from([1, 2, 3]));
-    await fs.symlink(path.join(workspace, '.env'), path.join(workspace, 'linked-config'));
     mocks.getProjectById.mockResolvedValue({
       id: 'project-1',
       repoPath: workspace,
@@ -61,8 +61,12 @@ describe('project artifact file policy', () => {
   });
 
   it('cannot bypass the sensitive path policy through a symlink', async () => {
+    await fs.mkdir(path.join(workspace, '.ssh'));
+    await fs.writeFile(path.join(workspace, '.ssh', 'notes'), 'private');
+    const alias = await linkFile(path.join(workspace, '.ssh', 'notes'), path.join(workspace, 'linked-config'));
+    const relative = path.relative(workspace, alias).split(path.sep).join('/');
     const response = await GET(
-      new NextRequest('http://localhost/api/projects/project-1/artifact?path=linked-config'),
+      new NextRequest(`http://localhost/api/projects/project-1/artifact?path=${encodeURIComponent(relative)}`),
       context,
     );
 

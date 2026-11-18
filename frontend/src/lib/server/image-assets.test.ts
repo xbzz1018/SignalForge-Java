@@ -1,3 +1,4 @@
+import { linkFile } from '@/test/workspace-links';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -43,7 +44,7 @@ describe('image asset validation', () => {
     expect(configuredMaxImageBytes('invalid')).toBe(10 * 1024 * 1024);
     expect(configuredMaxImageBytes(String(100 * 1024 * 1024))).toBe(50 * 1024 * 1024);
     expect(() => resolveProjectAssetPath('project-safe', '../secret.png')).toThrow(/Invalid asset filename/);
-    expect(resolveProjectAssetPath('project-safe', 'logo.png')).toContain('project-safe/assets/logo.png');
+    expect(resolveProjectAssetPath('project-safe', 'logo.png')).toContain(path.join('project-safe', 'assets', 'logo.png'));
   });
 
   it('accepts only regular files from the current project assets directory', async () => {
@@ -62,7 +63,7 @@ describe('image asset validation', () => {
     });
     await expect(resolveExistingProjectAssetPath('project-safe', outside)).rejects.toThrow(/project-relative/);
     await expect(resolveExistingProjectAssetPath('project-safe', 'safe.png')).rejects.toThrow(/directly inside/);
-    await fs.symlink(outside, path.join(assets, 'link.png'));
+    await linkFile(outside, path.join(assets, 'link.png'));
     await expect(resolveExistingProjectAssetPath('project-safe', 'assets/link.png')).rejects.toThrow(/not found/);
   });
 });

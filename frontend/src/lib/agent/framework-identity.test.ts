@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -70,8 +71,8 @@ describe('PI Agent framework identity', () => {
 
   it('binds untracked paths and contents deterministically within a hard budget', () => {
     const contents = new Map([
-      ['/repo/src/new-agent.ts', Buffer.from('version one')],
-      ['/repo/docs/new.md', Buffer.from('documentation')],
+      [resolve('/repo', 'src/new-agent.ts'), Buffer.from('version one')],
+      [resolve('/repo', 'docs/new.md'), Buffer.from('documentation')],
     ]);
     const readEntry = vi.fn((absolutePath: string) => ({
       kind: 'file' as const,
@@ -87,7 +88,7 @@ describe('PI Agent framework identity', () => {
       { cwd: '/repo', maxContentBytes: 64, readEntry },
     )).toBe(original);
 
-    contents.set('/repo/src/new-agent.ts', Buffer.from('version two'));
+    contents.set(resolve('/repo', 'src/new-agent.ts'), Buffer.from('version two'));
     expect(fingerprintUntrackedFiles(
       ['src/new-agent.ts', 'docs/new.md'],
       { cwd: '/repo', maxContentBytes: 64, readEntry },

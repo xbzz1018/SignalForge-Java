@@ -1,3 +1,4 @@
+import { linkFile } from '@/test/workspace-links';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -128,8 +129,8 @@ describe('PI Agent image extraction tool', () => {
     const direct = await tool.execute({ imagePath: outsideImage }, toolContext());
     expect(direct).toMatchObject({ ok: false, error: { code: 'ABSOLUTE_PATH_DENIED' } });
 
-    await fs.symlink(outsideImage, path.join(workspace, 'uploads', 'escape.png'));
-    const symlink = await tool.execute({ imagePath: 'uploads/escape.png' }, toolContext());
+    const alias = await linkFile(outsideImage, path.join(workspace, 'uploads', 'escape.png'));
+    const symlink = await tool.execute({ imagePath: path.relative(workspace, alias).split(path.sep).join('/') }, toolContext());
     expect(symlink).toMatchObject({ ok: false, error: { code: 'SYMLINK_ESCAPE_DENIED' } });
   });
 

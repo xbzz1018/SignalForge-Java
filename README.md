@@ -57,7 +57,7 @@ Pop-Location
 
 Java 集成测试使用 Docker 临时测试库。冒烟脚本仅启动临时 JVM，用合成行情验证登录、任务、快照和重启恢复；加 `-Live` 可验证真实行情，无需模型密钥。生产构建须在已生成 Prisma Client 后运行。
 
-从干净源码验证前端全量测试时，使用 Linux、Node.js 24、npm 和锁定依赖。在 `frontend` 目录执行：
+Windows 和 Linux 均可运行工作台测试。使用 Node.js 24，在 `frontend` 目录安装锁定的依赖并执行：
 
 ```sh
 npm ci --ignore-scripts --no-audit --no-fund
@@ -65,10 +65,6 @@ npx --no-install prisma generate
 node node_modules/vitest/vitest.mjs run --maxWorkers=3
 ```
 
-Windows 支持本地开发工作台、Java 主链路、类型检查和生产构建。Windows 下全量运行旧工作台测试仍有失败，包括文件系统符号链接、目录同步和受本地配置影响的测试。Java 会话、Agent 和证据工具的定向回归可在 `frontend` 目录运行：
-
-```powershell
-node node_modules/vitest/vitest.mjs run src/lib/java src/lib/domains/finance/agent-tools/knowledge-graph.test.ts src/app/api/internal/knowledge-agent/route.test.ts
-```
+默认测试使用隔离配置。PostgreSQL 集成测试需提供独立测试库，并运行 `npm run test:pi-agent:postgres`。Linux 的预览进程接管和命名空间沙箱有专门用例，Windows 验证启动新预览的流程。Windows 会在工作区文件重命名前同步文件内容，目录项的断电持久性由操作系统管理。
 
 服务边界与接口见 [架构](docs/Java后端架构.md) 和 [API 指南](docs/Java后端接入指南.md)。发布来源与版权见 [第三方声明](THIRD_PARTY_NOTICES.md)。请勿上传 `.env`、`.runtime`、依赖目录、缓存、本机验收记录或私有数据。

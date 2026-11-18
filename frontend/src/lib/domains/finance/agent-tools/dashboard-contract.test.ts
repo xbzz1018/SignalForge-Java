@@ -1,3 +1,4 @@
+import { linkDirectory } from '@/test/workspace-links';
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -250,10 +251,9 @@ describe("inspect_dashboard_contract tool", () => {
   });
 
   it("fails closed when a fixed contract path escapes through a symbolic link", async () => {
-    await fs.mkdir(path.join(workspace, "app"), { recursive: true });
     const outsidePage = path.join(outside, "page.tsx");
     await fs.writeFile(outsidePage, "HOST-SECRET\n", "utf8");
-    await fs.symlink(outsidePage, path.join(workspace, "app", "page.tsx"));
+    await linkDirectory(outside, path.join(workspace, "app"));
 
     const result = await invoke(
       createInspectDashboardContractTool({

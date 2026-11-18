@@ -1,3 +1,4 @@
+import { linkFile } from '@/test/workspace-links';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -423,7 +424,7 @@ describe('PI Agent EvidenceVerifier', () => {
     temporaryDirectories.push(outside);
     await writeFile(outside, 'secret.ts', 'export const secret = true;\n');
     await fs.mkdir(path.join(fixture.root, 'components'), { recursive: true });
-    await fs.symlink(
+    await linkFile(
       path.join(outside, 'secret.ts'),
       path.join(fixture.root, 'components', 'escaped.ts'),
     );

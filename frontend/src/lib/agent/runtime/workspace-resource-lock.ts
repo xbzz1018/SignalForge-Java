@@ -1,3 +1,4 @@
+import { syncDirectory } from './sync-directory';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -224,15 +225,6 @@ async function removeRecoveryClaimIfOwned(lockPath: string, claimId: string): Pr
     await fs.unlink(path.join(lockPath, RECOVERY_CLAIM_FILE));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
-}
-
-async function syncDirectory(directory: string): Promise<void> {
-  const handle = await fs.open(directory, 'r');
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
   }
 }
 

@@ -1,3 +1,4 @@
+import { linkFile } from '@/test/workspace-links';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -78,7 +79,8 @@ describe('file browser workspace mutation coordination', () => {
     await fs.writeFile(path.join(workspace, 'client.key'), 'private-key', 'utf8');
     await fs.mkdir(path.join(workspace, '.ssh'));
     await fs.writeFile(path.join(workspace, '.ssh/id_ed25519'), 'private-key', 'utf8');
-    await fs.symlink(path.join(workspace, '.env'), path.join(workspace, 'linked-config'));
+    await fs.writeFile(path.join(workspace, '.ssh', 'notes'), 'private');
+    const alias = await linkFile(path.join(workspace, '.ssh', 'notes'), path.join(workspace, 'linked-config'));
 
     const rootEntries = await listProjectDirectory('project-lock-test');
     expect(rootEntries.map((entry) => entry.name)).toContain('.env.example');
@@ -96,7 +98,7 @@ describe('file browser workspace mutation coordination', () => {
       writeProjectFileContent('project-lock-test', '.env', 'API_KEY=replaced'),
     ).rejects.toMatchObject({ status: 404, message: 'File not found' });
     await expect(
-      readProjectFileContent('project-lock-test', 'linked-config'),
+      readProjectFileContent('project-lock-test', path.relative(workspace, alias).split(path.sep).join('/')),
     ).rejects.toMatchObject({ status: 404, message: 'File not found' });
 
     expect(await fs.readFile(path.join(workspace, '.env'), 'utf8')).toBe('API_KEY=secret');

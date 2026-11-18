@@ -1,3 +1,4 @@
+import { linkDirectory } from '@/test/workspace-links';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -115,7 +116,7 @@ describe('PI Agent durable workspace mutation journal', () => {
   it('refuses a symlinked framework journal root', async () => {
     const outside = await fs.mkdtemp(path.join(os.tmpdir(), 'pi-agent-journal-outside-'));
     try {
-      await fs.symlink(outside, path.join(workspace, '.pi-mutation-journal'));
+      await linkDirectory(outside, path.join(workspace, '.pi-mutation-journal'));
 
       await expect(prepare('op_journal_symlink_root'))
         .rejects.toThrow('framework-owned directory');

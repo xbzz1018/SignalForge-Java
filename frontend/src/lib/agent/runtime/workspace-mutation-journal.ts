@@ -1,3 +1,4 @@
+import { syncDirectory } from './sync-directory';
 import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -210,15 +211,6 @@ function pathInside(base: string, relativePath: string): string {
     throw new Error('PI Agent mutation journal path escaped its root.');
   }
   return candidate;
-}
-
-async function syncDirectory(directory: string): Promise<void> {
-  const handle = await fs.open(directory, 'r');
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
 }
 
 async function writeFileDurably(filePath: string, content: Buffer, mode = 0o600): Promise<void> {
