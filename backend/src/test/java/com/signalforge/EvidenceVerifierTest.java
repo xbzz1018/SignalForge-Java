@@ -36,6 +36,16 @@ class EvidenceVerifierTest {
         assertThrows(IllegalArgumentException.class,()->verifier.verify(request(),response.replace("2025-01-09", "2025-01-10")));
         assertThrows(IllegalArgumentException.class,()->verifier.verify(request(),response.replace("\"complete\": false", "\"complete\": true")));
     }
+    @Test void rejectsIncompleteOrMislabeledSourceAtPublication() throws Exception {
+        var request = request();
+        for (var entry : java.util.Map.of("provider", "", "uri", "https://example.test/real",
+                "fetchedAt", "2099-01-01T00:00:00Z").entrySet()) {
+            var response = json.tree(resource("risk-response.fixture.json"));
+            var source = (tools.jackson.databind.node.ObjectNode) response.path("series").get(0).path("sourceRefs").get(0);
+            source.put(entry.getKey(), entry.getValue());
+            assertThrows(IllegalArgumentException.class, () -> verifier.verify(request, response.toString()), entry.getKey());
+        }
+    }
     @Test void demoRequiresExplicitConfiguration() throws Exception {
         assertThrows(com.signalforge.platform.ApiException.class,()->new RequestPolicy(false).validate(request()));
     }

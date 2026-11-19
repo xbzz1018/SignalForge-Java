@@ -17,7 +17,7 @@ public class EvidenceVerifier {
         boolean demo=request.securities().getFirst().market().equals("FIXTURE");
         require(root.path("demoData").isBoolean() && root.path("demoData").asBoolean()==demo);
         require(root.path("calculationVersion").asText().equals("risk-v1"));
-        require(root.path("annualizationFactor").asInt()==252 && root.path("volatilityDdof").asInt()==1);
+        require(root.path("annualizationFactor").asInt()==RiskCalculation.PERIODS_PER_YEAR && root.path("volatilityDdof").asInt()==1);
         require(root.path("metricUnit").asText().equals("PERCENT"));
         require(root.path("returnDefinition").asText().equals("DAILY_SIMPLE"));
         require(root.path("timezone").asText().equals("Asia/Shanghai"));
@@ -27,7 +27,7 @@ public class EvidenceVerifier {
             require(item.path("securityId").asText().equals(security.securityId()));
             require(item.path("market").asText().equals(security.market()));
             require(item.path("adjustment").asText().equals(request.priceAdjustment()));
-            var bars=item.path("bars"); require(bars.isArray() && bars.size()>=3 && bars.size()<=800);
+            var bars=item.path("bars"); require(bars.isArray() && bars.size()>=RiskCalculation.MIN_OBSERVATIONS && bars.size()<=RiskCalculation.MAX_OBSERVATIONS);
             var prices = new ArrayList<EtfPriceSource.Bar>(bars.size());
             for (JsonNode bar : bars) {
                 var price = EtfPriceSource.bar(bar.path("date").asText(), bar.path("close").asText());
@@ -42,12 +42,7 @@ public class EvidenceVerifier {
             require(coverage.path("lastDate").asText().equals(bars.get(bars.size()-1).path("date").asText()));
             require(!coverage.path("calendarVerified").asBoolean(true));
             require(coverage.path("complete").isBoolean() && !coverage.path("complete").asBoolean());
-            var refs=item.path("sourceRefs"); require(refs.isArray() && !refs.isEmpty());
-            for (var ref:refs) {
-                require(!ref.path("uri").asText().isBlank());
-                java.time.OffsetDateTime.parse(ref.path("fetchedAt").asText());
-                require(ref.path("demoData").isBoolean() && ref.path("demoData").asBoolean()==demo);
-            }
+            require(RiskSources.valid(item.path("sourceRefs"), demo, false));
             var metrics=item.path("metrics");
             var names=new HashSet<String>(metrics.propertyNames());
             require(names.equals(request.metrics().stream().map(Enum::name).collect(java.util.stream.Collectors.toSet())));

@@ -7,8 +7,6 @@ import com.signalforge.research.ResearchRequest.Security;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -56,7 +54,7 @@ public class RiskService {
             }
         }
         return json.write(Map.ofEntries(Map.entry("effectiveRequest", request), Map.entry("demoData", demo),
-                Map.entry("calculationVersion", "risk-v1"), Map.entry("annualizationFactor", 252),
+                Map.entry("calculationVersion", "risk-v1"), Map.entry("annualizationFactor", RiskCalculation.PERIODS_PER_YEAR),
                 Map.entry("volatilityDdof", 1), Map.entry("metricUnit", "PERCENT"), Map.entry("returnDefinition", "DAILY_SIMPLE"),
                 Map.entry("timezone", "Asia/Shanghai"), Map.entry("series", series), Map.entry("warnings", List.of(
                         demo ? "Synthetic demonstration data" : "Fetched historical prices are not an as-published historical data replay",
@@ -73,7 +71,7 @@ public class RiskService {
         if (snapshot != null) {
             if (!adjustment.equals(snapshot.path("adjustment").asText())) throw new IllegalArgumentException("INVALID_PRICE_SNAPSHOT");
             var rows = snapshot.path("bars");
-            if (!rows.isArray() || rows.size() < 3 || rows.size() > 800) throw new IllegalArgumentException("INVALID_PRICE_SNAPSHOT");
+            if (!rows.isArray() || rows.size() < RiskCalculation.MIN_OBSERVATIONS || rows.size() > RiskCalculation.MAX_OBSERVATIONS) throw new IllegalArgumentException("INVALID_PRICE_SNAPSHOT");
             var replay = new ArrayList<Bar>(rows.size());
             for (var row : rows) replay.add(EtfPriceSource.bar(row.path("date").asText(), row.path("close").asText()));
             if (replay.stream().anyMatch(bar -> outside(bar.date(), range))
@@ -81,17 +79,7 @@ public class RiskService {
                 throw new IllegalArgumentException("INVALID_PRICE_SNAPSHOT");
             }
             var sources = snapshot.path("sourceRefs");
-            if (!sources.isArray() || sources.isEmpty()) throw new IllegalArgumentException("INVALID_PRICE_SNAPSHOT");
-            Instant now = Instant.now();
-            for (var ref : sources) {
-                Instant fetched = OffsetDateTime.parse(ref.path("fetchedAt").asText()).toInstant();
-                String uri = ref.path("uri").asText();
-                if (uri.isBlank() || ref.path("provider").asText().isBlank() || !ref.path("demoData").isBoolean()
-                        || ref.path("demoData").asBoolean() != demo || uri.startsWith("fixture://") != demo
-                        || !fetched.isAfter(now.minus(24, ChronoUnit.HOURS)) || fetched.isAfter(now.plusSeconds(30))) {
-                    throw new IllegalArgumentException("INVALID_PRICE_SNAPSHOT");
-                }
-            }
+            if (!RiskSources.valid(sources, demo, true)) throw new IllegalArgumentException("INVALID_PRICE_SNAPSHOT");
             bars = replay;
             refs = sources;
             status = "SNAPSHOT_REUSED";

@@ -46,7 +46,7 @@ public class ResearchController {
         access.require(project,auth,false); return store.result(project,id);
     }
     @GetMapping("/{id}/snapshots") List<JsonNode> snapshots(@PathVariable UUID project,@PathVariable UUID id,Authentication auth) {
-        access.require(project,auth,false); store.result(project,id); return snapshots.forTask(project,id);
+        access.require(project,auth,false); store.requireResultReady(project,id); return snapshots.forTask(project,id);
     }
     @GetMapping(value="/{id}/events",produces="text/event-stream")
     SseEmitter events(@PathVariable UUID project,@PathVariable UUID id,Authentication auth,
@@ -55,7 +55,7 @@ public class ResearchController {
         long after=0;
         if (cursor!=null) try { after=Long.parseLong(cursor); }
         catch (NumberFormatException e) { throw new ApiException(400,"INVALID_EVENT_CURSOR","事件序号必须为整数"); }
-        store.events(project,id,after);
+        store.validateCursor(project,id,after);
         return events.subscribe(project,id,after,auth);
     }
 }

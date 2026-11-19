@@ -20,8 +20,13 @@ public class TaskStore {
     public record Task(UUID id, UUID projectId, String state, long eventSequence, long fencingToken,
                        int attempts, Instant deadlineAt, Instant createdAt, Instant updatedAt,
                        String errorCode, ResearchRequest request) {
-        public boolean terminal() { return List.of("SUCCEEDED","FAILED","CANCELLED").contains(state); }
+        public boolean terminal() { return isTerminal(state); }
     }
+    private static boolean isTerminal(String state) {
+        return List.of("SUCCEEDED", "FAILED", "CANCELLED").contains(state);
+    }
+    record Progress(String state, long sequence) {}
+    record EventBatch(List<Event> events, boolean terminal, long sequence) {}
     public record Creation(Task task, boolean created) {}
     public record Claim(Task task, UUID runId, UUID callId, long token) {}
     public record Event(long sequence, String type, JsonNode payload, Instant createdAt) {}
@@ -89,16 +94,35 @@ public class TaskStore {
         });
     }
     public JsonNode result(UUID project, UUID id) {
-        Task t=get(project,id);
-        if (!t.state().equals("SUCCEEDED")) throw new ApiException(409,"RESULT_NOT_READY","任务尚未成功验收");
+        requireResultReady(project, id);
         return json.tree(db.queryForObject("SELECT result_json::text FROM sf_task_result WHERE task_id=?",String.class,id));
     }
+    private Progress progress(UUID project, UUID id) {
+        return db.query("SELECT state,event_seq FROM sf_task WHERE project_id=? AND id=?",
+                (r,n) -> new Progress(r.getString("state"), r.getLong("event_seq")), project, id).stream()
+                .findFirst().orElseThrow(() -> new ApiException(404,"TASK_NOT_FOUND","任务不存在"));
+    }
+    void requireResultReady(UUID project, UUID id) {
+        if (!progress(project,id).state().equals("SUCCEEDED"))
+            throw new ApiException(409,"RESULT_NOT_READY","任务尚未成功验收");
+    }
+    Progress validateCursor(UUID project, UUID id, long after) {
+        var progress = progress(project, id);
+        if (after < 0 || after > progress.sequence())
+            throw new ApiException(400,"INVALID_EVENT_CURSOR","事件序号超出任务范围");
+        return progress;
+    }
+    EventBatch eventBatch(UUID project, UUID id, long after) {
+        var progress = validateCursor(project, id, after);
+        List<Event> events = after == progress.sequence() ? List.of() : db.query("""
+                SELECT sequence,type,payload,created_at FROM sf_task_event
+                WHERE task_id=? AND sequence>? AND sequence<=? ORDER BY sequence LIMIT 200
+                """, (r,n) -> new Event(r.getLong("sequence"),r.getString("type"),json.tree(r.getString("payload")),
+                        r.getTimestamp("created_at").toInstant()), id, after, progress.sequence());
+        return new EventBatch(events, isTerminal(progress.state()), progress.sequence());
+    }
     public List<Event> events(UUID project, UUID id, long after) {
-        Task t=get(project,id);
-        if (after<0 || after>t.eventSequence()) throw new ApiException(400,"INVALID_EVENT_CURSOR","事件序号超出任务范围");
-        return db.query("SELECT * FROM sf_task_event WHERE task_id=? AND sequence>? ORDER BY sequence LIMIT 200",
-                (r,n)->new Event(r.getLong("sequence"),r.getString("type"),json.tree(r.getString("payload")),
-                        r.getTimestamp("created_at").toInstant()),id,after);
+        return eventBatch(project, id, after).events();
     }
     public Claim claim(String worker) {
         return tx.execute(s -> {
@@ -149,16 +173,17 @@ public class TaskStore {
         return Boolean.TRUE.equals(tx.execute(s -> {
             Task t=locked(c.task().projectId(),c.task().id());
             if (!owns(c) || !t.state().equals("VERIFYING") || !authorized(t)) return false;
+            String resultHash = JsonCodec.sha256(response);
             db.update("""
                 INSERT INTO sf_task_result(task_id,run_id,request_hash,result_hash,result_json)
                 SELECT id,?,request_hash,?,?::jsonb FROM sf_task WHERE id=?
-                """,c.runId(),JsonCodec.sha256(response),response,t.id());
+                """,c.runId(),resultHash,response,t.id());
             if ("ETF_RISK_COMPARISON".equals(t.request().researchType()))
                 snapshots.save(t.projectId(),t.id(),t.request(),response);
             db.update("UPDATE sf_task SET state='SUCCEEDED',lease_until=NULL WHERE id=?",t.id());
             db.update("UPDATE sf_tool_call SET status='ACCEPTED' WHERE id=?",c.callId());
             closeRuns(t.id(),"SUCCEEDED");
-            event(t.id(),"SUCCEEDED",Map.of("resultHash",JsonCodec.sha256(response)));
+            event(t.id(),"SUCCEEDED",Map.of("resultHash",resultHash));
             return true;
         }));
     }

@@ -129,13 +129,44 @@ class ResearchIntegrationTest {
         assertEquals(200,browser.call("GET",base(),null,false).statusCode());
         assertEquals(403,browser.call("POST",base(),json.write(request()),true).statusCode());
     }
+    @Test void sseReconnectReplaysAllEventsAcrossBatchBoundaryBeforeClosing() throws Exception {
+        var task = store.create(project, user, "multi-batch-events", request()).task();
+        tx.executeWithoutResult(status -> {
+            db.update("""
+                INSERT INTO sf_task_event(task_id,sequence,type,payload)
+                SELECT ?,n,'RUNNING','{}'::jsonb FROM generate_series(2, 204) n
+                """, task.id());
+            db.update("UPDATE sf_task SET event_seq=204 WHERE id=?", task.id());
+            store.cancel(project, task.id());
+        });
+        Session browser = new Session();
+        browser.login();
+        var stream = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + base() + "/" + task.id() + "/events"))
+                .header("Last-Event-ID", "4").timeout(Duration.ofSeconds(8)).GET().build();
+        var response = browser.client.send(stream, HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode(), response.body());
+        assertEquals(java.util.stream.LongStream.rangeClosed(5, 205).boxed().toList(),
+                response.body().lines().filter(line -> line.startsWith("id:"))
+                        .map(line -> Long.parseLong(line.substring(3).trim())).toList());
+        assertTrue(response.body().contains("id:205\nevent:CANCELLED"));
+    }
+
     @Test void httpCreationValidationAndSseReplay() throws Exception {
         Session browser=new Session(); browser.login();
         var created=browser.call("POST",base(),json.write(request()),true); assertEquals(202,created.statusCode(),created.body());
         String id=json.tree(created.body()).path("id").asText();
         assertEquals(200,browser.call("POST",base(),json.write(request()),true).statusCode());
         assertEquals(409,browser.call("GET",base()+"/"+id+"/result",null,false).statusCode());
+        assertEquals(409,browser.call("GET",base()+"/"+id+"/snapshots",null,false).statusCode());
+        assertEquals(404,browser.call("GET",base()+"/"+UUID.randomUUID()+"/snapshots",null,false).statusCode());
         assertEquals(200,browser.call("POST",base()+"/"+id+"/cancel","{}",true).statusCode());
+        for (String invalid : List.of("-1", "999")) {
+            var invalidStream = HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+base()+"/"+id+"/events"))
+                    .header("Last-Event-ID",invalid).timeout(Duration.ofSeconds(5)).GET().build();
+            var rejected = browser.client.send(invalidStream,HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, rejected.statusCode());
+            assertEquals("INVALID_EVENT_CURSOR", json.tree(rejected.body()).path("code").asText());
+        }
         HttpRequest stream=HttpRequest.newBuilder(URI.create("http://127.0.0.1:"+port+base()+"/"+id+"/events"))
                 .header("Last-Event-ID","1").timeout(Duration.ofSeconds(5)).GET().build();
         var response=browser.client.send(stream,HttpResponse.BodyHandlers.ofString());

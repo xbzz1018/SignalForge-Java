@@ -46,6 +46,8 @@ public class KnowledgeQuery {
                 !JsonCodec.sha256(snapshot.payload()).equals(snapshot.payloadHash())) throw incomplete();
         Map<String,KnowledgeEvidence.Evidence> evidence=new HashMap<>();
         for (var ref:graph.evidence()) if (evidence.put(ref.id(),ref)!=null) throw incomplete();
+        var supportsByClaim = graph.edges().stream().filter(edge -> edge.type().equals("SUPPORTED_BY"))
+                .collect(java.util.stream.Collectors.groupingBy(KnowledgeEvidence.Edge::source));
         var claims=new ArrayList<Citation>();
         for (var edge:graph.edges().stream().sorted(Comparator.comparing(KnowledgeEvidence.Edge::id)).toList()) {
             if (!edge.type().equals("HAS_SOURCE_CLAIM")) continue;
@@ -65,8 +67,8 @@ public class KnowledgeQuery {
                     !record.path("offsetUnit").asText().equals("UTF16_CODE_UNITS") ||
                     !record.path("pdfHash").asText().matches("[a-f0-9]{64}") ||
                     record.path("reviewedAt").asText().isBlank()) throw incomplete();
-            var supports=graph.edges().stream().filter(e->e.type().equals("SUPPORTED_BY") &&
-                    e.source().equals(edge.target()) && e.target().equals("document:"+document)).toList();
+            var supports = supportsByClaim.getOrDefault(edge.target(), List.of()).stream()
+                    .filter(e -> e.target().equals("document:" + document)).toList();
             if (supports.size()!=1) throw incomplete();
             var support=evidence.get(supports.getFirst().evidenceKey());
             if (support==null || !support.scope().equals("PDF_TEXT_CITATION") ||

@@ -1,5 +1,6 @@
 package com.signalforge.research;
 
+import com.signalforge.infrastructure.BoundedHttpBody;
 import com.signalforge.infrastructure.JsonCodec;
 import com.signalforge.knowledge.*;
 import java.net.URI;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 /** Reuses PI Agent over a fixed local endpoint; browser credentials never leave Java. */
 @Component
 public class KnowledgeAgentExecutor implements ResearchExecutor {
+    private static final int MAX_RESPONSE_BYTES = 32 * 1024;
     private final KnowledgeQuery query;
     private final AgentRunStore runs;
     private final JsonCodec json;
@@ -43,15 +45,16 @@ public class KnowledgeAgentExecutor implements ResearchExecutor {
         var question=c.task().request().question();
         var evidence=query.query(c.task().projectId(),new KnowledgeQuery.Request(question.securityId(),question.releaseId(),null,5));
         var input=new KnowledgeAnswer.Input("1.0",c.task().id(),c.task().projectId(),question,KnowledgeAnswer.PROMPT_VERSION,evidence);
+        String inputJson = json.write(input);
         if (evidence.claims().isEmpty()) {
-            runs.begin(c,json.write(input),0);
+            runs.begin(c,inputJson,0);
             runs.returned(c,"{}",0,true);
             return json.write(KnowledgeAnswer.empty(input));
         }
         if (token.length()<32) throw AgentRunStore.failure("AGENT_NOT_CONFIGURED");
-        runs.begin(c,json.write(input),65_536);
+        runs.begin(c,inputJson,65_536);
         try {
-            String response=invoke(c,json.write(input));
+            String response=invoke(c,inputJson);
             var body=json.tree(response);
             // Account even an unsuccessful/cancelled run when the provider reported usage.
             var usage=KnowledgeAnswer.usage(body);
@@ -66,15 +69,19 @@ public class KnowledgeAgentExecutor implements ResearchExecutor {
         var request=HttpRequest.newBuilder(endpoint).version(HttpClient.Version.HTTP_1_1)
                 .timeout(Duration.ofSeconds(75)).header("Content-Type","application/json")
                 .header("Authorization","Bearer "+token).POST(HttpRequest.BodyPublishers.ofString(input)).build();
-        var pending=client.sendAsync(request,HttpResponse.BodyHandlers.ofByteArray());
+        var pending=client.sendAsync(request, info -> new BoundedHttpBody(MAX_RESPONSE_BYTES));
         try {
             while (true) {
                 if (!runs.active(c)) throw AgentRunStore.failure("AGENT_EXECUTION_REVOKED");
                 try {
                     var response=pending.get(500,TimeUnit.MILLISECONDS);
-                    if (response.statusCode()!=200 || response.body().length>32768)
+                    if (response.statusCode()!=200)
                         throw AgentRunStore.failure("AGENT_SERVICE_UNAVAILABLE");
                     return new String(response.body(),java.nio.charset.StandardCharsets.UTF_8);
+                } catch (java.util.concurrent.ExecutionException failed) {
+                    var error = AgentRunStore.failure("AGENT_SERVICE_UNAVAILABLE");
+                    error.initCause(failed.getCause());
+                    throw error;
                 } catch (TimeoutException waiting) { /* Poll ownership while HTTP is in flight. */ }
             }
         } finally { if (!pending.isDone()) pending.cancel(true); }

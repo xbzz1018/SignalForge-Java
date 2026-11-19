@@ -22,7 +22,7 @@ public final class KnowledgeAnswer {
         require(response.path("schemaVersion").asText().equals("1.0") &&
                 response.path("taskId").asText().equals(input.taskId().toString()) &&
                 response.path("promptVersion").asText().equals(PROMPT_VERSION));
-        require(response.path("status").asText().equals("COMPLETED") && response.path("toolObserved").asBoolean());
+        require(response.path("status").asText().equals("COMPLETED") && response.path("toolObserved").isBoolean() && response.path("toolObserved").asBoolean());
         var ids=response.path("citationIds"); var observed=response.path("observedCitationIds");
         require(ids.isArray() && ids.size()<=5 && observed.isArray() && observed.size()<=5);
         Set<String> available=new HashSet<>(), seen=new HashSet<>();
@@ -32,7 +32,10 @@ public final class KnowledgeAnswer {
         for (var id:ids) require(id.isString() && seen.contains(id.asText()) && !selected.contains(id.asText()) && selected.add(id.asText()));
         String provider=response.path("provider").asText(), model=response.path("model").asText();
         require(provider.matches("[A-Za-z0-9_-]{1,40}") && !model.isBlank() && model.length()<=100);
-        int turns=response.path("turns").asInt(-1); require(turns>=1 && turns<=3);
+        var turnCount = response.path("turns");
+        require(turnCount.isIntegralNumber() && turnCount.canConvertToInt());
+        int turns = turnCount.asInt();
+        require(turns >= 1 && turns <= 3);
         return report(input,selected,provider,model,turns,usage(response));
     }
     public static Usage usage(JsonNode response) {

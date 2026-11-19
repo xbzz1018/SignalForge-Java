@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 
 final class RiskCalculation {
+    static final int MIN_OBSERVATIONS = 3;
+    static final int MAX_OBSERVATIONS = 800;
+    static final int PERIODS_PER_YEAR = 252;
+
     private RiskCalculation() {}
 
     static String version(Security security, String adjustment, List<Bar> bars) {
@@ -22,7 +26,7 @@ final class RiskCalculation {
     static String close(Bar bar) { return bar.close().stripTrailingZeros().toPlainString(); }
 
     static Map<Metric, Double> metrics(List<Bar> bars) {
-        if (bars.size() < 3 || bars.size() > 800) throw new IllegalArgumentException("INSUFFICIENT_PRICE_COVERAGE");
+        if (bars.size() < MIN_OBSERVATIONS || bars.size() > MAX_OBSERVATIONS) throw new IllegalArgumentException("INSUFFICIENT_PRICE_COVERAGE");
         double first = bars.getFirst().close().doubleValue();
         LocalDate previousDate = null;
         double previous = first, peak = first, drawdown = 0, mean = 0, sumSquared = 0;
@@ -45,7 +49,7 @@ final class RiskCalculation {
         }
         var result = new EnumMap<Metric, Double>(Metric.class);
         result.put(Metric.TOTAL_RETURN, (previous / first - 1) * 100);
-        result.put(Metric.ANNUALIZED_VOLATILITY, Math.sqrt(Math.max(0, sumSquared) / (returns - 1) * 252) * 100);
+        result.put(Metric.ANNUALIZED_VOLATILITY, Math.sqrt(Math.max(0, sumSquared) / (returns - 1) * PERIODS_PER_YEAR) * 100);
         result.put(Metric.MAX_DRAWDOWN, drawdown * 100);
         if (result.values().stream().anyMatch(value -> !Double.isFinite(value))) throw new IllegalArgumentException("INVALID_RISK_METRIC");
         return result;

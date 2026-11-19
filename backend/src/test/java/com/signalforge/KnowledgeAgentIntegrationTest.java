@@ -39,6 +39,7 @@ class KnowledgeAgentIntegrationTest {
     KnowledgeQuery query;
     KnowledgeQuery.Result evidence;
     HttpServer server;
+    boolean chunkedResponse;
     KnowledgeAgentExecutor executor;
     AtomicInteger requests;
     java.util.function.Function<String,String> response;
@@ -59,7 +60,7 @@ class KnowledgeAgentIntegrationTest {
             if (!("Bearer "+TOKEN).equals(exchange.getRequestHeaders().getFirst("Authorization"))) { exchange.sendResponseHeaders(401,-1); exchange.close(); return; }
             String body=new String(exchange.getRequestBody().readAllBytes(),StandardCharsets.UTF_8);
             byte[] output=response.apply(body).getBytes(StandardCharsets.UTF_8);
-            try { exchange.sendResponseHeaders(200,output.length); exchange.getResponseBody().write(output); }
+            try { exchange.sendResponseHeaders(200,chunkedResponse ? 0 : output.length); exchange.getResponseBody().write(output); }
             catch (java.io.IOException cancelled) { /* Expected when the Java task is cancelled. */ }
             finally { exchange.close(); }
         });
@@ -117,6 +118,28 @@ class KnowledgeAgentIntegrationTest {
         assertEquals("AGENT_RESPONSE_REJECTED",assertThrows(ApiException.class,()->executor.execute(c)).code());
         assertEquals(240,db.queryForObject("SELECT actual_tokens FROM sf_agent_run WHERE task_id=?",Integer.class,c.task().id()));
         assertEquals("RETURNED",runs.find(c.task().id()).state());
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"turns", "toolObserved"})
+    void rejectsIncorrectAgentFieldTypesAfterAccounting(String field) {
+        response = input -> {
+            var body = (tools.jackson.databind.node.ObjectNode) json.tree(validResponse(input));
+            if (field.equals("turns")) body.put(field, 1.5);
+            else body.put(field, "true");
+            return body.toString();
+        };
+        var c = claim();
+        assertEquals("AGENT_RESPONSE_REJECTED", assertThrows(ApiException.class, () -> executor.execute(c)).code());
+        assertEquals(240, db.queryForObject("SELECT actual_tokens FROM sf_agent_run WHERE task_id=?", Integer.class, c.task().id()));
+    }
+    @Test void oversizedChunkedResponseDoesNotPublishOrResend() {
+        chunkedResponse = true;
+        response = input -> validResponse(input) + " ".repeat(32 * 1024);
+        var c = claim();
+        assertEquals("AGENT_SERVICE_UNAVAILABLE", assertThrows(ApiException.class, () -> executor.execute(c)).code());
+        assertEquals("UNKNOWN", runs.find(c.task().id()).state());
+        assertEquals("AGENT_OUTCOME_UNKNOWN", assertThrows(ApiException.class, () -> executor.execute(c)).code());
+        assertEquals(1, requests.get());
     }
     @Test void rechecksCreatorMembershipBeforeModelAndBeforePublishing() throws Exception {
         var c=claim(); db.update("DELETE FROM sf_project_member WHERE project_id=?",project);

@@ -24,12 +24,12 @@ public class EtfPriceSource {
     public Prices load(Security security, LocalDate end) throws Exception {
         String code = security.securityId();
         boolean sh = security.market().equals("SSE");
-        if (!(sh && code.matches("5[0-9]{5}") || security.market().equals("SZSE") && code.matches("1[0-9]{5}"))) {
+        if (!security.supportsEtfHistory()) {
             throw new IllegalArgumentException("UNSUPPORTED_ETF");
         }
         String secid = (sh ? "1." : "0.") + code;
         URI eastmoney = URI.create("https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=" + secid
-                + "&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53&klt=101&fqt=0&lmt=800&end="
+                + "&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53&klt=101&fqt=0&lmt=" + RiskCalculation.MAX_OBSERVATIONS + "&end="
                 + end.format(DateTimeFormatter.BASIC_ISO_DATE));
         JsonNode root;
         try {
@@ -40,7 +40,7 @@ public class EtfPriceSource {
         } catch (Exception unavailable) {
             String ticker = (sh ? "sh" : "sz") + code;
             URI tencent = URI.create("https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=" + ticker
-                    + ",day,," + end + ",800,");
+                    + ",day,," + end + "," + RiskCalculation.MAX_OBSERVATIONS + ",");
             return new Prices(tencent(http.json(tencent), ticker, code), "tencent", tencent.toString(), Instant.now());
         }
         return new Prices(eastmoney(root, code, sh), "eastmoney", eastmoney.toString(), Instant.now());
@@ -65,7 +65,11 @@ public class EtfPriceSource {
     private static List<Bar> tencent(JsonNode root, String ticker, String code) {
         var data = root.path("data").path(ticker);
         if (root.path("code").asInt(-1) != 0 || !data.isObject()) throw new IllegalArgumentException("ETF_IDENTITY_MISMATCH");
-        requireEtf(code, data.path("qt").path(ticker).path(1).asText());
+        var quote = data.path("qt").path(ticker);
+        if (!quote.isArray() || !code.equals(quote.path(2).asText())) {
+            throw new IllegalArgumentException("ETF_IDENTITY_MISMATCH");
+        }
+        requireEtf(code, quote.path(1).asText());
         var rows = data.path("day");
         requireRows(rows);
         var bars = new ArrayList<Bar>(rows.size());
@@ -82,7 +86,7 @@ public class EtfPriceSource {
     }
 
     private static void requireRows(JsonNode rows) {
-        if (!rows.isArray() || rows.isEmpty() || rows.size() > 800) throw new IllegalArgumentException("INVALID_PRICE_ROWS");
+        if (!rows.isArray() || rows.isEmpty() || rows.size() > RiskCalculation.MAX_OBSERVATIONS) throw new IllegalArgumentException("INVALID_PRICE_ROWS");
     }
 
     private static void requireEtf(String code, String name) {

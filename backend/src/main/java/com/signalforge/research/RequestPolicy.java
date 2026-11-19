@@ -30,8 +30,7 @@ public class RequestPolicy {
         for (var s:r.securities()) {
             if (demo) {
                 if (!fixtures || !s.market().equals("FIXTURE") || !s.securityId().matches("fixture:ETF_[AB]")) invalid("演示证券未启用或混用了真实行情");
-            } else if (!(s.market().equals("SSE") && s.securityId().matches("5[0-9]{5}"))
-                    && !(s.market().equals("SZSE") && s.securityId().matches("1[0-9]{5}"))) invalid("当前真实行情只支持 SSE 5开头或 SZSE 1开头的基金代码");
+            } else if (!s.supportsEtfHistory()) invalid("当前真实行情只支持 SSE 5开头或 SZSE 1开头的基金代码");
         }
     }
     private void invalid(String message) { throw new ApiException(422,"INVALID_RESEARCH_PARAMETERS",message); }

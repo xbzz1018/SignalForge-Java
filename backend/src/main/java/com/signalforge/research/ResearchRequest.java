@@ -26,6 +26,11 @@ public record ResearchRequest(
         return new ResearchRequest("1.0","KNOWLEDGE_QA",List.of(),null,null,null,List.of(),"AGENT",question);
     }
     public enum Metric { TOTAL_RETURN, ANNUALIZED_VOLATILITY, MAX_DRAWDOWN }
-    public record Security(@NotBlank @Size(max=128) String securityId, @NotBlank String market) {}
+    public record Security(@NotBlank @Size(max=128) String securityId, @NotBlank String market) {
+        public boolean supportsEtfHistory() {
+            return ("SSE".equals(market) && securityId.matches("5[0-9]{5}"))
+                    || ("SZSE".equals(market) && securityId.matches("1[0-9]{5}"));
+        }
+    }
     public record PriceRange(@NotNull LocalDate start, @NotNull LocalDate end, @NotNull String frequency) {}
 }

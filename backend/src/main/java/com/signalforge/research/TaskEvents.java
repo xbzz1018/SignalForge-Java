@@ -30,12 +30,12 @@ public class TaskEvents {
         subscriptions.forEach((id,s)->{
             try {
                 access.require(s.project(),s.auth(),false);
-                for (var e:store.events(s.project(),s.task(),s.after().get())) {
+                var batch = store.eventBatch(s.project(),s.task(),s.after().get());
+                for (var e : batch.events()) {
                     s.emitter().send(SseEmitter.event().id(Long.toString(e.sequence())).name(e.type()).data(e));
                     s.after().set(e.sequence());
                 }
-                TaskStore.Task task=store.get(s.project(),s.task());
-                if ((task.terminal() && s.after().get()>=task.eventSequence()) || Instant.now().isAfter(s.until())) {
+                if ((batch.terminal() && s.after().get()>=batch.sequence()) || Instant.now().isAfter(s.until())) {
                     subscriptions.remove(id); s.emitter().complete();
                 }
             } catch (Exception e) { subscriptions.remove(id); s.emitter().completeWithError(e); }
