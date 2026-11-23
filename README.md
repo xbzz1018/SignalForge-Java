@@ -43,7 +43,11 @@ cd SignalForge-Java
 
 Docker Compose 项目名为 `signalforge-java-dev`，新安装数据库为 `signalforge_java` 和 `signalforge_java_web`。分时行情通过 Redis 短期缓存，ETF 风险分析通过 PostgreSQL 复用日线快照。分时查询和刷新入口见 [Java API](docs/Java后端接入指南.md#分时行情接口)。已有 Java 版安装保留原数据库和账号；升级后重跑 `setup-frontend.ps1` 并重新登录。业务配置参见 [.env.example](.env.example)。
 
-与 Python 版并行运行时，请分别使用各自的目录和 `.env`。上述 PowerShell 脚本按本仓库配置连接数据库和缓存；调整 Java 基础设施端口时，修改根目录 `.env`，并同步工作台的 `frontend/.env` 数据库端口。启动基础设施请使用 `scripts/start-infra.ps1`，停止使用 `scripts/stop-infra.ps1`。
+### 检查和停止服务
+
+- Java 启动失败或 Prisma 无法连接数据库时，从仓库根目录运行 `.\scripts\check-infra.ps1`，检查 PostgreSQL、Redis 和 Neo4j 是否能响应。
+- 工作台端口被占用时，可用 `.\scripts\start-frontend.ps1 -Port 58873` 改用其他端口。若调整基础设施端口，请修改根目录 `.env`，并同步 `frontend/.env` 中的数据库端口。与 Python 版并行运行时，各自使用自己的项目目录和 `.env`。
+- 用完后，在运行前后端的终端分别按 `Ctrl+C`，再运行 `.\scripts\stop-infra.ps1` 停止容器。数据库数据保存在现有卷中，下次用 `.\scripts\start-infra.ps1` 启动即可。
 
 ## 验证
 
