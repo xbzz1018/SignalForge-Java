@@ -9,7 +9,7 @@ Java 默认监听 `127.0.0.1:58870`。本阶段支持结构化请求 `ETF_RISK_C
 3. 登录后重新 GET `/api/auth/csrf`，使用新 token。GET `/api/me` 获取可访问项目。
 4. 后续写请求携带 session cookie 与 CSRF 头。POST `/api/auth/logout` 也需要 CSRF。
 
-初始账号由 `scripts/init-dev.ps1` 生成，凭据在本地 `.env`；Next工作台仅为显式配置的单开发账号提供Better Auth到Java的会话桥接，详见原前端联调.md。bootstrap 仅创建不存在的用户，重复启动不重置数据库密码。OWNER 可以创建、取消和读取；READER 只读。业务接口依据已验证账号检查项目成员身份，不能传入 userId 代替授权。
+初始账号由 `scripts/init-dev.ps1` 生成，凭据在本地 `.env`；Next工作台仅为显式配置的单开发账号提供Better Auth到Java的会话桥接，详见[原前端联调](原前端联调.md)。bootstrap 仅创建不存在的用户，重复启动不重置数据库密码。OWNER 可以创建、取消和读取；READER 只读。业务接口依据已验证账号检查项目成员身份，不能传入 userId 代替授权。
 
 ## 任务接口
 
@@ -25,7 +25,7 @@ Java 默认监听 `127.0.0.1:58870`。本阶段支持结构化请求 `ETF_RISK_C
 | GET `/{taskId}/snapshots` | 返回该已验收任务使用的行情输入及来源；沿用项目授权 |
 | GET `/{taskId}/events` | SSE；Last-Event-ID 是当前任务已收到的整数序号 |
 
-请求使用 `contracts/examples/risk-comparison.fixture.json`。幂等键限定1至128个字母、数字、点、下划线、冒号或连字符，在项目内唯一。请求按 DTO 字段序列化后计算摘要；数组顺序属于合同的一部分。同键不同参数返回409，客户端修改参数后应换键。
+请求体见 [ETF 风险对比样例](../contracts/examples/risk-comparison.fixture.json)。幂等键限定1至128个字母、数字、点、下划线、冒号或连字符，在项目内唯一。请求按 DTO 字段序列化后计算摘要；数组顺序属于合同的一部分。同键不同参数返回409，客户端修改参数后应换键。
 
 任务状态为 `QUEUED → RUNNING → VERIFYING → SUCCEEDED`，非终态可进入 FAILED 或 CANCELLED。浏览器关闭事件连接不取消任务。SSE 的 id 是事件序号，event 是状态事件，data 包含 sequence、type、payload、createdAt。连接约50秒后主动结束；客户端带最后序号重连。终态事件发送完毕后关闭连接，客户端应停止重连。
 
@@ -44,7 +44,7 @@ Java 默认监听 `127.0.0.1:58870`。本阶段支持结构化请求 `ETF_RISK_C
 
 风险计算在 Spring Boot 进程内完成。内部计算模块接受任务请求及已保存的快照；不另起服务，也不开放单独的公共计算入口。
 
-结果样例为 `contracts/examples/risk-response.fixture.json`。每只证券提供输入 bars、sourceRefs、获取时间、dataVersion、metrics 与 coverage。金额以十进制字符串保留；指标单位 PERCENT，年化因子252，日简单收益率，样本标准差 ddof=1，最大回撤为正损失百分比。Java 验收参数、摘要、来源与覆盖字段，并按输入行情复算比对指标；数值用 JUnit 固定数据测试校验。
+结果字段见[风险对比响应样例](../contracts/examples/risk-response.fixture.json)。每只证券提供输入 bars、sourceRefs、获取时间、dataVersion、metrics 与 coverage。金额以十进制字符串保留；指标单位 PERCENT，年化因子252，日简单收益率，样本标准差 ddof=1，最大回撤为正损失百分比。Java 验收参数、摘要、来源与覆盖字段，并按输入行情复算比对指标；数值用 JUnit 固定数据测试校验。
 
 摘要文本为 `market|securityId|adjustment` 加换行，再逐行追加 `YYYY-MM-DD|close` 和换行，UTF8、SHA256。close 不用指数表示且去除小数末尾零。
 
