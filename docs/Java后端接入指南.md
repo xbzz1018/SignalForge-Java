@@ -18,7 +18,7 @@ Java 默认监听 `127.0.0.1:58870`。本阶段支持结构化请求 `ETF_RISK_C
 | 方法与后缀 | 行为 |
 | --- | --- |
 | POST 基础路径 | 创建，必填 Idempotency-Key；新建202，重复同请求200 |
-| GET 基础路径 | 最近100条任务，按创建时间倒序 |
+| GET 基础路径 | 最近 100 条任务，按创建时间倒序，可用 `researchType` 筛选 |
 | GET `/{taskId}` | 状态、原请求、执行次数、截止时间、错误码 |
 | POST `/{taskId}/cancel` | 非终态直接取消；已终态返回原状态 |
 | GET `/{taskId}/result` | 返回已经验收的 JSON 结果；尚未成功返回409 |
@@ -28,6 +28,15 @@ Java 默认监听 `127.0.0.1:58870`。本阶段支持结构化请求 `ETF_RISK_C
 请求使用 `contracts/examples/risk-comparison.fixture.json`。幂等键限定1至128个字母、数字、点、下划线、冒号或连字符，在项目内唯一。请求按 DTO 字段序列化后计算摘要；数组顺序属于合同的一部分。同键不同参数返回409，客户端修改参数后应换键。
 
 任务状态为 `QUEUED → RUNNING → VERIFYING → SUCCEEDED`，非终态可进入 FAILED 或 CANCELLED。浏览器关闭事件连接不取消任务。SSE 的 id 是事件序号，event 是状态事件，data 包含 sequence、type、payload、createdAt。连接约50秒后主动结束；客户端带最后序号重连。终态事件发送完毕后关闭连接，客户端应停止重连。
+
+查询某一类任务时，在列表请求中带上 `researchType`：
+
+```text
+GET /api/projects/{projectId}/research/tasks?researchType=ETF_RISK_COMPARISON
+GET /api/projects/{projectId}/research/tasks?researchType=KNOWLEDGE_QA
+```
+
+服务先按类型筛选，再取最近 100 条。省略参数则查询所有类型。列表请求需要携带登录会话的 Cookie。
 
 ## 分时行情接口
 
@@ -82,5 +91,3 @@ series新增fetchStatus：PROVIDER_FETCH为本次取数，SNAPSHOT_REUSED为复�
 ## 正文、候选与审核接口
 
 同一知识基础路径支持 `POST /documents`、`POST /documents/{id}/extractions`、`POST /candidates/{id}/review` 和 `POST /publications`。入队接口需要幂等键，审核需要 3 至 500 字理由，全部沿用项目授权和 CSRF。完整请求、查询端点和错误码见《公告正文与关系审核》。
-
-任务历史 GET /api/projects/{project}/research/tasks 支持 researchType=ETF_RISK_COMPARISON 或 KNOWLEDGE_QA。先按类型过滤，再返回最近 100 条。
